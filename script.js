@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const calendarDiv = document.getElementById('calendar');
     const prevMonthBtn = document.getElementById('prev-month-btn');
     const nextMonthBtn = document.getElementById('next-month-btn');
+    const carriedOverPointsSpan = document.getElementById('carried-over-points');
+    const monthlyPointsSpan = document.getElementById('monthly-points');
     const totalPointsSpan = document.getElementById('total-points');
     const ratePointsInput = document.getElementById('rate-points');
     const rateYenInput = document.getElementById('rate-yen');
@@ -24,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // App State
     let chores = JSON.parse(localStorage.getItem('chores')) || [];
     let dailyRecords = JSON.parse(localStorage.getItem('dailyRecords')) || {};
+    let carriedOverPointsData = JSON.parse(localStorage.getItem('carriedOverPointsData')) || {};
     let currentDate = new Date();
     let selectedDate = null;
     let tempDayChores = []; // To hold chores for the day being edited in the modal
@@ -34,6 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const saveDailyRecords = () => {
         localStorage.setItem('dailyRecords', JSON.stringify(dailyRecords));
+    };
+    const saveCarriedOverPoints = () => {
+        localStorage.setItem('carriedOverPointsData', JSON.stringify(carriedOverPointsData));
     };
 
     const renderChores = () => {
@@ -234,26 +240,65 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Summary Calculation ---
     const updateSummary = () => {
         const year = currentDate.getFullYear();
-        const month = currentDate.getMonth() + 1;
-        let totalPoints = 0;
+        const month = currentDate.getMonth(); // 0-indexed
 
+        // Key for the CURRENT month (e.g., '2024-7')
+        const currentMonthKey = `${year}-${month + 1}`;
+        // Key for the PREVIOUS month
+        const prevMonthDate = new Date(year, month - 1);
+        const prevMonthKey = `${prevMonthDate.getFullYear()}-${prevMonthDate.getMonth() + 1}`;
+
+        // 1. Get carried-over points from the PREVIOUS month
+        const prevMonthCarryOver = carriedOverPointsData[prevMonthKey] || 0;
+
+        // 2. Calculate points earned this month
+        let monthlyPoints = 0;
         for (const date in dailyRecords) {
-            if (date.startsWith(`${year}-${month}`)) {
-                totalPoints += dailyRecords[date].reduce((sum, choreName) => {
+            const recordDate = new Date(date.split('-').join('/')); // More robust date parsing
+            if (recordDate.getFullYear() === year && recordDate.getMonth() === month) {
+                monthlyPoints += dailyRecords[date].reduce((sum, choreName) => {
                     const chore = chores.find(c => c.name === choreName);
                     return sum + (chore ? chore.points : 0);
                 }, 0);
             }
         }
 
-        totalPointsSpan.textContent = totalPoints;
+        // 3. Calculate total points for conversion
+        const totalPointsForConversion = prevMonthCarryOver + monthlyPoints;
+
+        // 4. Calculate Yen and the new carry-over points for NEXT month
         const ratePoints = parseFloat(ratePointsInput.value) || 1;
         const rateYen = parseFloat(rateYenInput.value) || 0;
-        if (ratePoints > 0) {
-            totalYenSpan.textContent = Math.floor((totalPoints / ratePoints) * rateYen);
+        let totalYen = 0;
+        let newCarryOver = totalPointsForConversion; // Default to all points if rate is invalid
+
+        if (ratePoints > 0 && rateYen > 0) {
+            // Calculate potential yen without any rounding to 10s
+            const potentialYen = Math.floor((totalPointsForConversion / ratePoints) * rateYen);
+            
+            // Round the yen amount down to the nearest 10
+            totalYen = Math.floor(potentialYen / 10) * 10;
+
+            // Calculate how many points were actually used for the final yen amount
+            const pointsUsed = Math.floor((totalYen / rateYen) * ratePoints);
+            
+            // The new carry-over is the remainder
+            newCarryOver = totalPointsForConversion - pointsUsed;
         } else {
-            totalYenSpan.textContent = 0;
+            // If rate is not valid for conversion, no yen is given and all points are carried over.
+            totalYen = 0;
+            newCarryOver = totalPointsForConversion;
         }
+
+        // 5. Save the new carry-over for the CURRENT month
+        carriedOverPointsData[currentMonthKey] = newCarryOver;
+        saveCarriedOverPoints();
+
+        // 6. Update UI
+        carriedOverPointsSpan.textContent = prevMonthCarryOver;
+        monthlyPointsSpan.textContent = monthlyPoints;
+        totalPointsSpan.textContent = totalPointsForConversion;
+        totalYenSpan.textContent = totalYen;
     };
 
     ratePointsInput.addEventListener('input', updateSummary);
