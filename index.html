@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お手伝いポイント計算</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>お手伝いポイント計算</h1>
+
+        <div class="settings-section">
+            <h2>お手伝い設定</h2>
+            <div class="chore-inputs">
+                <input type="text" id="chore-name" placeholder="お手伝いの内容 (例: お風呂掃除)">
+                <input type="number" id="chore-points" placeholder="ポイント">
+                <button id="add-chore-btn">追加</button>
+            </div>
+            <ul id="chore-list"></ul>
+        </div>
+
+        <div class="calendar-section">
+            <h2>今月のお手伝いカレンダー</h2>
+            <div class="calendar-header">
+                <button id="prev-month-btn">&lt;</button>
+                <h3 id="month-and-year"></h3>
+                <button id="next-month-btn">&gt;</button>
+            </div>
+            <div id="calendar"></div>
+        </div>
+
+        <div class="summary-section">
+            <h2>今月の結果</h2>
+            <p>合計ポイント: <span id="total-points">0</span> ポイント</p>
+            <div class="rate-setting">
+                <input type="number" id="rate-points" value="3"> ポイント = <input type="number" id="rate-yen" value="10"> 円
+            </div>
+            <p>お小遣い: <span id="total-yen">0</span> 円</p>
+        </div>
+    </div>
+
+    <div id="day-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn">&times;</span>
+            <h3 id="modal-date"></h3>
+            <div id="modal-chore-list"></div>
+            <button id="save-day-btn">保存</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
