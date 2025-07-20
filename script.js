@@ -15,7 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const modal = document.getElementById('day-modal');
     const modalDate = document.getElementById('modal-date');
-    const modalChoreList = document.getElementById('modal-chore-list');
+    const modalChoreSelect = document.getElementById('modal-chore-select');
+    const addDayChoreBtn = document.getElementById('add-day-chore-btn');
+    const dayChoreList = document.getElementById('day-chore-list');
     const saveDayBtn = document.getElementById('save-day-btn');
     const closeBtn = document.querySelector('.close-btn');
 
@@ -24,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let dailyRecords = JSON.parse(localStorage.getItem('dailyRecords')) || {};
     let currentDate = new Date();
     let selectedDate = null;
+    let tempDayChores = []; // To hold chores for the day being edited in the modal
 
     // --- Local Storage --- 
     const saveChores = () => {
@@ -148,39 +151,64 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Modal --- 
     const openDayModal = (date) => {
         selectedDate = date;
+        tempDayChores = [...(dailyRecords[date] || [])]; // Copy existing chores to a temporary array
         modalDate.textContent = date;
-        modalChoreList.innerHTML = '';
 
-        const previouslyChecked = dailyRecords[date] || [];
-
+        // Populate dropdown
+        modalChoreSelect.innerHTML = '';
         if (chores.length === 0) {
-            modalChoreList.innerHTML = '<p>まずはお手伝いを設定してください。</p>';
+            const option = document.createElement('option');
+            option.textContent = 'お手伝いを設定してください';
+            option.disabled = true;
+            modalChoreSelect.appendChild(option);
+            addDayChoreBtn.disabled = true;
         } else {
             chores.forEach(chore => {
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.id = `chore-${chore.name}`;
-                checkbox.value = chore.name;
-                checkbox.checked = previouslyChecked.includes(chore.name);
-
-                const label = document.createElement('label');
-                label.htmlFor = `chore-${chore.name}`;
-                label.textContent = `${chore.name} (${chore.points} pt)`;
-
-                const div = document.createElement('div');
-                div.className = 'chore-checkbox-list';
-                div.appendChild(checkbox);
-                div.appendChild(label);
-                modalChoreList.appendChild(div);
+                const option = document.createElement('option');
+                option.value = chore.name;
+                option.textContent = `${chore.name} (${chore.points} pt)`;
+                modalChoreSelect.appendChild(option);
             });
+            addDayChoreBtn.disabled = false;
         }
 
+        renderTempDayChores();
         modal.style.display = 'block';
     };
+
+    const renderTempDayChores = () => {
+        dayChoreList.innerHTML = '';
+        tempDayChores.forEach((choreName, index) => {
+            const chore = chores.find(c => c.name === choreName);
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span>${choreName} (${chore ? chore.points : 0} pt)</span>
+                <button class="delete-day-chore-btn" data-index="${index}">削除</button>
+            `;
+            dayChoreList.appendChild(li);
+        });
+    };
+
+    addDayChoreBtn.addEventListener('click', () => {
+        const selectedChoreName = modalChoreSelect.value;
+        if (selectedChoreName) {
+            tempDayChores.push(selectedChoreName);
+            renderTempDayChores();
+        }
+    });
+
+    dayChoreList.addEventListener('click', (e) => {
+        if (e.target.classList.contains('delete-day-chore-btn')) {
+            const index = parseInt(e.target.dataset.index, 10);
+            tempDayChores.splice(index, 1);
+            renderTempDayChores();
+        }
+    });
 
     const closeDayModal = () => {
         modal.style.display = 'none';
         selectedDate = null;
+        tempDayChores = [];
     }
 
     closeBtn.addEventListener('click', closeDayModal);
@@ -191,13 +219,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     saveDayBtn.addEventListener('click', () => {
-        const selectedChores = [];
-        modalChoreList.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
-            selectedChores.push(checkbox.value);
-        });
-
-        if (selectedChores.length > 0) {
-            dailyRecords[selectedDate] = selectedChores;
+        if (tempDayChores.length > 0) {
+            dailyRecords[selectedDate] = [...tempDayChores];
         } else {
             delete dailyRecords[selectedDate]; // Remove date entry if no chores are selected
         }
